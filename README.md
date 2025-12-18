@@ -51,13 +51,37 @@ python datamodel_parser.py wildcard_logs.txt --chip-version 1.4.2
 
 ### Web Tool
 
-```bash
-pip install -r requirements.txt
+#### Local Development Setup
 
-python run_validator.py
+1. **Install Dependencies**:
+   ```bash
+   # Create a virtual environment (recommended)
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # Install required packages
+   pip install -r requirements.txt
+   ```
 
-# Open http://localhost:5000
-```
+2. **Run the Flask Server**:
+   ```bash
+   python run_validator.py
+   # OR
+   python app/server.py
+   ```
+
+3. **Access the Application**:
+   - Open your browser and navigate to: `http://localhost:5000`
+   - The Flask server runs on port 5000 by default
+
+#### GitHub Pages Deployment
+
+For GitHub Pages (static hosting), the application uses Pyodide to run Python code in the browser. The Python package `esp-matter-dm-validator` is automatically loaded from PyPI or test PyPI.
+
+**Note**: If you encounter package loading errors on GitHub Pages:
+- Ensure the package is published to PyPI or test PyPI
+- Check browser console for detailed error messages
+- The application will try multiple fallback methods to load the package
 
 1. **Generate Logs**: Run the following command on your device:
    ```

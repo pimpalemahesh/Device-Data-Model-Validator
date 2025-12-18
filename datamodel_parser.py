@@ -19,24 +19,12 @@ import logging
 import os
 import sys
 
-# Import directly from dmv_tool (installed as PyPI package)
-# For development, add dmv_tool to path if package is not installed
-try:
-    from parsers.wildcard_logs import parse_datamodel_logs
-    from validators.conformance_checker import (
-        validate_device_conformance,
-        detect_spec_version_from_parsed_data as detect_chip_version_from_parsed_data,
-    )
-except ImportError:
-    # Fallback for development: add dmv_tool to path
-    dmv_tool_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dmv_tool")
-    if os.path.exists(dmv_tool_path) and dmv_tool_path not in sys.path:
-        sys.path.insert(0, dmv_tool_path)
-    from parsers.wildcard_logs import parse_datamodel_logs
-    from validators.conformance_checker import (
-        validate_device_conformance,
-        detect_spec_version_from_parsed_data as detect_chip_version_from_parsed_data,
-    )
+from dmv_tool.parsers.wildcard_logs import parse_datamodel_logs
+from dmv_tool.validators.conformance_checker import (
+    validate_device_conformance,
+    detect_spec_version_from_parsed_data as detect_chip_version_from_parsed_data,
+)
+
 
 try:
     from tabulate import tabulate

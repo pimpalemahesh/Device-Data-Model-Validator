@@ -21,9 +21,15 @@
 
     <!-- Pyodide Configuration -->
     <script>
-      // Configure package URL if hosting wheel file separately
-      // Set this to your wheel file URL, or leave undefined to use PyPI/test PyPI
-      // window.DMV_PACKAGE_URL = 'https://your-domain.com/packages/esp_matter_dm_validator-1.0.4-py3-none-any.whl';
+      // Option 1: Configure direct wheel file URL (highest priority)
+      // Set this to your wheel file URL to bypass PyPI entirely
+      // This is useful for GitHub Pages deployment if PyPI access is unreliable
+      // Example: window.DMV_PACKAGE_URL = 'https://your-domain.com/packages/esp_matter_dm_validator-1.0.4-py3-none-any.whl';
+      
+      // Option 2: Configure PyPI source (if DMV_PACKAGE_URL is not set)
+      // Set to true to use test PyPI first (default), false to use regular PyPI only
+      // The application will automatically fallback to regular PyPI if test PyPI fails
+      window.DMV_USE_TEST_PYPI = true;
     </script>
     <!-- Pyodide -->
     <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>

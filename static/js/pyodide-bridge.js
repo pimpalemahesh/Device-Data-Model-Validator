@@ -6,6 +6,25 @@
 let pyodide = null;
 let pythonModulesLoaded = false;
 
+// Helper function to remove leading indentation from Python code strings
+function unindentPythonCode(code) {
+  const lines = code.split('\n');
+  // Find minimum indentation (excluding empty lines)
+  const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+  if (nonEmptyLines.length === 0) return code;
+  
+  const minIndent = Math.min(...nonEmptyLines.map(line => {
+    const match = line.match(/^(\s*)/);
+    return match ? match[1].length : 0;
+  }));
+  
+  // Remove minimum indentation from all lines
+  return lines.map(line => {
+    if (line.trim().length === 0) return line;
+    return line.substring(minIndent);
+  }).join('\n');
+}
+
 // ============= PYODIDE INITIALIZATION =============
 export async function initializePyodide() {
   if (pyodide) {
@@ -264,28 +283,51 @@ export async function parseDatamodelLogs(logData) {
   await ensurePyodideReady();
   
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d3b7cb8b-1018-4d8e-b199-d6e0d5b15b73',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pyodide-bridge.js:263',message:'parseDatamodelLogs entry',data:{logDataLength:logData?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    
     // Escape the log data properly for Python
     const escapedLogData = logData
       .replace(/\\/g, '\\\\')
       .replace(/`/g, '\\`')
       .replace(/\${/g, '\\${');
     
-    // Use Python's json module to properly serialize
-    pyodide.runPython(`
-      import json
-      log_data_str = """${escapedLogData}"""
-    `);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d3b7cb8b-1018-4d8e-b199-d6e0d5b15b73',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pyodide-bridge.js:272',message:'After escaping log data',data:{escapedLength:escapedLogData?.length,hasTripleQuotes:escapedLogData?.includes('"""')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     
-    const result = await pyodide.runPythonAsync(`
-      from dmv_tool.parsers.wildcard_logs import parse_datamodel_logs
-      import json
-      
-      parsed = parse_datamodel_logs(log_data_str)
-      json.dumps(parsed)
-    `);
+    // Use Python's json module to properly serialize
+    const pythonCode1 = `import json
+log_data_str = """${escapedLogData}"""`;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d3b7cb8b-1018-4d8e-b199-d6e0d5b15b73',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pyodide-bridge.js:279',message:'Python code string 1',data:{codeLength:pythonCode1.length,firstLine:pythonCode1.split('\n')[0],hasLeadingSpaces:pythonCode1.split('\n')[0]?.startsWith(' ')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    
+    pyodide.runPython(pythonCode1);
+    
+    const pythonCode2 = `from dmv_tool.parsers.wildcard_logs import parse_datamodel_logs
+import json
+
+parsed = parse_datamodel_logs(log_data_str)
+json.dumps(parsed)`;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d3b7cb8b-1018-4d8e-b199-d6e0d5b15b73',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pyodide-bridge.js:287',message:'Python code string 2',data:{codeLength:pythonCode2.length,firstLine:pythonCode2.split('\n')[0],hasLeadingSpaces:pythonCode2.split('\n')[0]?.startsWith(' ')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    
+    const result = await pyodide.runPythonAsync(pythonCode2);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d3b7cb8b-1018-4d8e-b199-d6e0d5b15b73',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pyodide-bridge.js:293',message:'parseDatamodelLogs success',data:{resultLength:result?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     
     return JSON.parse(result);
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d3b7cb8b-1018-4d8e-b199-d6e0d5b15b73',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'pyodide-bridge.js:298',message:'parseDatamodelLogs error',data:{errorMessage:error?.message,errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     console.error("Error parsing logs:", error);
     throw new Error(`Failed to parse logs: ${error.message}`);
   }
@@ -301,14 +343,14 @@ export async function detectSpecVersion(parsedData) {
     // Store parsed data in Python namespace
     pyodide.globals.set('parsed_data_json', JSON.stringify(parsedData));
     
-    const result = await pyodide.runPythonAsync(`
-      from dmv_tool.validators.conformance_checker import detect_spec_version_from_parsed_data
-      import json
-      
-      parsed_data = json.loads(parsed_data_json)
-      version = detect_spec_version_from_parsed_data(parsed_data)
-      version if version else "master"
-    `);
+    const pythonCode = `from dmv_tool.validators.conformance_checker import detect_spec_version_from_parsed_data
+import json
+
+parsed_data = json.loads(parsed_data_json)
+version = detect_spec_version_from_parsed_data(parsed_data)
+version if version else "master"`;
+    
+    const result = await pyodide.runPythonAsync(pythonCode);
     
     return result;
   } catch (error) {
@@ -328,16 +370,16 @@ export async function validateDeviceConformance(parsedData, specVersion) {
     pyodide.globals.set('parsed_data_json', JSON.stringify(parsedData));
     pyodide.globals.set('spec_version_str', specVersion);
     
-    const result = await pyodide.runPythonAsync(`
-      from dmv_tool.validators.conformance_checker import validate_device_conformance
-      import json
-      
-      parsed_data = json.loads(parsed_data_json)
-      spec_version = spec_version_str
-      
-      validation_results = validate_device_conformance(parsed_data, spec_version)
-      json.dumps(validation_results)
-    `);
+    const pythonCode = `from dmv_tool.validators.conformance_checker import validate_device_conformance
+import json
+
+parsed_data = json.loads(parsed_data_json)
+spec_version = spec_version_str
+
+validation_results = validate_device_conformance(parsed_data, spec_version)
+json.dumps(validation_results)`;
+    
+    const result = await pyodide.runPythonAsync(pythonCode);
     
     return JSON.parse(result);
   } catch (error) {
@@ -353,12 +395,12 @@ export async function getSupportedVersions() {
   await ensurePyodideReady();
   
   try {
-    const result = await pyodide.runPythonAsync(`
-      from dmv_tool.configs.constants import SUPPORTED_SPEC_VERSIONS
-      import json
-      
-      json.dumps(list(SUPPORTED_SPEC_VERSIONS))
-    `);
+    const pythonCode = `from dmv_tool.configs.constants import SUPPORTED_SPEC_VERSIONS
+import json
+
+json.dumps(list(SUPPORTED_SPEC_VERSIONS))`;
+    
+    const result = await pyodide.runPythonAsync(pythonCode);
     
     return JSON.parse(result);
   } catch (error) {

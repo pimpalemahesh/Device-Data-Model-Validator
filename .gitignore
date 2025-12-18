@@ -1,0 +1,10 @@
+# Python cache
+*/__pycache__/*
+__pycache__/
+*.pyc
+*.pyo
+
+output/*.json
+*/generated/*.json
+session_data/
+*.log

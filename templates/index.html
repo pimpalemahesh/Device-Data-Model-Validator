@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Upload Section -->
+<section class="upload-section">
+    {% if not parsed_data %}
+    <h2 class="section-title">
+        <i class="fas fa-cloud-upload-alt"></i>
+        Upload Wildcard File
+    </h2>
+
+    <!-- Chip-tool Command Instructions -->
+    <div class="command-instructions">
+        <h3><i class="fas fa-terminal"></i> Generate Wildcard Logs</h3>
+        <p>First, use the following chip-tool command to generate wildcard logs:</p>
+        <div class="command-box">
+            <code>./chip-tool any read-by-id 0xFFFFFFFF 0xFFFFFFFF &lt;node-id&gt; 0xFFFF > wildcard_logs.txt</code>
+            <button class="copy-btn" onclick="copyCommand()" title="Copy command">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>
+        <div class="command-note">
+            <i class="fas fa-info-circle"></i>
+            The wildcard_logs.txt file will be created in the <strong>same</strong> directory
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="upload-text">Drop your .txt file here or click to browse</div>
+            <div class="upload-subtext">Supports .txt files containing device log data</div>
+
+            <input type="file" name="file" accept=".txt" class="file-input" id="fileInput" required>
+            <button type="button" class="btn btn-primary" id="uploadBtn">
+                <i class="fas fa-folder-open"></i> Choose File
+            </button>
+        </div>
+
+        {% if error %}
+        <div class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Error:</strong> {{ error }}
+        </div>
+        {% endif %}
+    </form>
+    {% else %}
+    <h2 class="section-title">
+        <i class="fas fa-check-circle"></i>
+        File Upload Complete
+    </h2>
+    <div class="upload-success-card">
+        <div class="success-header">
+            <i class="fas fa-check-circle"></i>
+            <h3>File processed successfully!</h3>
+        </div>
+        <div class="success-content">
+            <div class="file-info-card">
+                <i class="fas fa-file-alt"></i>
+                <div class="file-details">
+                    {% if uploaded_filename %}
+                    <div class="filename">{{ uploaded_filename }}</div>
+                    <div class="file-status">Parsed and ready for compliance validation</div>
+                    {% else %}
+                    <div class="filename">Your wildcard file</div>
+                    <div class="file-status">Parsed and ready for compliance validation</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="next-steps">
+            <p>Now select a version to validate compliance against:</p>
+        </div>
+
+        <div class="version-selection mt-3">
+            <h4><i class="fas fa-cogs"></i> Select Version for Compliance Check</h4>
+
+            {% if detected_version %}
+            <div class="auto-detected-version" style="background: #e8f5e9; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #4caf50;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <i class="fas fa-search" style="color: #4caf50;"></i>
+                    <span>
+                        Auto-detected version: {{ detected_version }}
+                    </span>
+                <div style="margin-top: 6px; color: #b26a00; font-size: 0.98em;">
+                    <i class="fas fa-exclamation-circle" style="color: #ff9800;"></i>
+                    <strong>Note:</strong> The auto-detected version may not always be correct. Please review and select the correct version if needed before validating.
+                </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="version-form">
+                <div class="form-group">
+                    <label for="complianceVersion">
+                        <i class="fas fa-code-branch"></i>
+                        {% if auto_validated %}
+                        Re-validate with Different Version (Optional)
+                        {% else %}
+                        Data Model Version
+                        {% endif %}
+                    </label>
+                    <select id="complianceVersion" class="form-control" data-parse-id="{{ parse_id or '' }}" data-detected-version="{{ detected_version or '' }}">
+                        {% if auto_validated %}
+                        <option value="">Select different version to re-validate...</option>
+                        {% else %}
+                        <option value="">Select version to validate against...</option>
+                        {% endif %}
+                        {% if detected_version %}
+                        <option value="{{ detected_version }}" selected>{{ detected_version }} (Auto-detected{% if auto_validated %} - Used{% else %} - Recommended{% endif %})</option>
+                        {% endif %}
+                        {% for version in supported_versions %}
+                            {% if version != detected_version %}
+                            <option value="{{ version }}">{{ version }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" id="validateBtn" class="btn btn-success">
+                        <i class="fas fa-shield-alt"></i>
+                        {% if auto_validated %}Re-validate{% else %}Validate{% endif %} Compliance
+                    </button>
+                    <button type="button" id="uploadNewBtn" class="btn btn-secondary">
+                        <i class="fas fa-upload"></i> Upload New File
+                    </button>
+                </div>
+
+                <div id="validateMessage" class="message-container" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Results Section -->
+{% if validation_data %}
+<section class="results-section">
+    <h2 class="section-title">
+        <i class="fas fa-clipboard-check"></i>
+        Validation Results
+    </h2>
+
+    <!-- Validation Summary -->
+    <div class="validation-summary">
+        <h3><i class="fas fa-chart-bar"></i> Endpoint Summary</h3>
+        <div class="summary-stats">
+            <div class="stat-card stat-total">
+                <div class="stat-value">{{ validation_data.summary.total_endpoints }}</div>
+                <div class="stat-label">Total Endpoints</div>
+            </div>
+            <div class="stat-card stat-compliant">
+                <div class="stat-value">{{ validation_data.summary.compliant_endpoints }}</div>
+                <div class="stat-label">Compliant</div>
+            </div>
+            <div class="stat-card stat-non-compliant">
+                <div class="stat-value">{{ validation_data.summary.non_compliant_endpoints }}</div>
+                <div class="stat-label">Non-Compliant</div>
+            </div>
+            <div class="stat-card stat-compliance">
+                <div class="stat-value">{{ "%.0f"|format((validation_data.summary.compliant_endpoints / validation_data.summary.total_endpoints * 100) if validation_data.summary.total_endpoints > 0 else 0) }}%</div>
+                <div class="stat-label">Compliance Rate</div>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <button onclick="downloadValidationReport()" class="btn btn-success">
+                <i class="fas fa-download"></i> Download Validation Report
+            </button>
+            <button onclick="downloadParsedData()" class="btn btn-secondary">
+                <i class="fas fa-download"></i> Download Parsed Data
+            </button>
+        </div>
+
+        <!-- Validation Scope Notice -->
+        <div class="mt-3" style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
+            <h4 style="margin: 0 0 10px 0; color: #1976d2; font-size: 1em;">
+                <i class="fas fa-info-circle"></i> Validation Scope
+            </h4>
+            <div style="color: #424242; font-size: 0.9em;">
+                <strong>✅ Mandatory Elements Verified:</strong>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                    <li>Device type and cluster revisions</li>
+                    <li>Clusters marked as mandatory by conformance on the device type</li>
+                    <li>Mandatory attributes, commands, and features of each required cluster on the device</li>
+                    <li>Optional features added by the application, along with their required attributes and commands</li>
+                </ul>
+
+                <strong>⚠️ Not Fully Validated (Optional / Provisional / Disallowed / Deprecated):</strong>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                    <li>Optional clusters present on the device</li>
+                    <li>Optional attributes, commands, and events within clusters</li>
+                    <li>Extra elements present on the device other than mandatory</li>
+                    <li>Events (not present in wildcard logs); warnings shown only for missing mandatory events</li>
+                    <li>Attributes and commands dependent on multiple features</li>
+                </ul>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- Collapsible Detailed Results -->
+    <div class="detailed-results-container">
+        <div class="detailed-results-header" onclick="toggleDetailedResults()" style="cursor: pointer; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e9ecef;">
+            <h3 style="margin: 0; display: flex; align-items: center; justify-content: space-between;">
+                <span><i class="fas fa-info-circle"></i> Detailed Compliance Results</span>
+                <span class="toggle-icon" style="font-size: 0.8em; color: #666;">
+                    <i class="fas fa-chevron-down"></i> Click to expand
+                </span>
+            </h3>
+        </div>
+
+        <!-- Endpoints Details -->
+        <div class="endpoints-grid" id="detailedResults" style="display: none;">
+            {% for endpoint in validation_data.endpoints %}
+        <div class="endpoint-card">
+            <div class="endpoint-header">
+                <div class="endpoint-title">
+                    <i class="fas fa-plug"></i>
+                    Endpoint {{ endpoint.endpoint }}
+                </div>
+                <span class="compliance-badge {{ 'badge-compliant' if endpoint.is_compliant else 'badge-non-compliant' }}">
+                    {{ '✓ Compliant' if endpoint.is_compliant else '✗ Non-Compliant' }}
+                </span>
+            </div>
+
+            <div class="endpoint-content">
+                <div class="device-types">
+                    {% for device_type in endpoint.device_types %}
+                    {% if device_type.device_type_name %}
+                    <div class="device-type-card {{ 'non-compliant' if not device_type.is_compliant }}">
+                        <div class="device-type-header">
+                            <div class="device-type-name">
+                                <i class="fas fa-microchip"></i>
+                                {{ device_type.device_type_name.replace('_', ' ').title() }}
+                            </div>
+                            <div class="device-type-id">{{ device_type.device_type_id }}</div>
+                        </div>
+
+                        {% set endpoint_revision_issues = device_type.revision_issues|selectattr('item_type', 'eq', 'device_type')|list if device_type.revision_issues else [] %}
+                        {% if endpoint_revision_issues %}
+                        <div class="revision-issues">
+                            <h4><i class="fas fa-exclamation-circle"></i> Device Type Revision Issues ({{ endpoint_revision_issues|length }})</h4>
+                            <ul class="revision-list">
+                                {% for issue in endpoint_revision_issues %}
+                                <li class="revision-error">
+                                    <i class="fas fa-times-circle"></i>
+                                    <span class="issue-message">{{ issue.message }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        {% if device_type.cluster_validations %}
+                        <div class="clusters-grid">
+                            {% for cluster in device_type.cluster_validations %}
+                            {% set cluster_data = parsed_data.endpoints|selectattr('id', 'eq', endpoint.endpoint)|list|first if parsed_data %}
+                            {% set actual_cluster_data = cluster_data.clusters.get(cluster.cluster_id, {}) if cluster_data else {} %}
+                            {% set has_event_warnings = cluster.event_warnings|length > 0 %}
+                            {% set cluster_missing = cluster.missing_elements|selectattr('type', 'eq', 'cluster')|list if cluster.missing_elements else [] %}
+                            {% set is_cluster_missing = cluster_missing|length > 0 %}
+                            <div class="cluster-card {{ 'clickable-cluster' if not is_cluster_missing else '' }} {{ 'non-compliant' if not cluster.is_compliant else ('warning' if cluster.is_compliant and has_event_warnings else '') }}"
+                                 data-cluster-id="{{ cluster.cluster_id }}"
+                                 data-endpoint-id="{{ endpoint.endpoint }}"
+                                 {% if not is_cluster_missing %}onclick="openClusterModal('{{ cluster.cluster_id }}', '{{ endpoint.endpoint }}')"{% endif %}
+                                 style="{% if not is_cluster_missing %}cursor: pointer;{% endif %}">
+                                <div class="cluster-header">
+                                    <div class="cluster-info">
+                                        <div class="cluster-name">
+                                            <i class="fas fa-{% if is_cluster_missing %}exclamation-triangle{% else %}network-wired{% endif %}"></i>
+                                            {{ cluster.cluster_name.replace('_', ' ').title() }}
+                                        </div>
+                                        <div class="cluster-description">{% if is_cluster_missing %}Cluster not found in device{% else %}Click to view details{% endif %}</div>
+                                    </div>
+                                    <div class="cluster-actions">
+                                        <div class="cluster-id">{{ cluster.cluster_id }}</div>
+                                        {% if not is_cluster_missing %}
+                                        <div class="view-button">
+                                            <i class="fas fa-eye"></i>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="cluster-stats">
+                                    <div class="compliance-status">
+                                        <span><i class="fas fa-list"></i> {{ cluster.cluster_type.title() }}</span>
+                                        {% if not cluster.is_compliant %}
+                                        <span style="color: var(--error-color);">
+                                            <i class="fas fa-times"></i> Non-Compliant
+                                            {% if cluster.missing_elements %}
+                                                {% set cluster_missing = cluster.missing_elements|selectattr('type', 'eq', 'cluster')|list %}
+                                                {% if cluster_missing %}
+                                                (Cluster Missing)
+                                                {% else %}
+                                                ({{ cluster.missing_elements|length }} missing)
+                                                {% endif %}
+                                            {% endif %}
+                                            {% if cluster.duplicate_elements and cluster.duplicate_elements|length > 0 %}
+                                            <span style="margin-left: 5px;">
+                                                <i class="fas fa-clone"></i> {{ cluster.duplicate_elements|length }} duplicates
+                                            </span>
+                                            {% endif %}
+                                        </span>
+                                        {% else %}
+                                        <span style="color: var(--success-color);">
+                                            <i class="fas fa-check"></i> Compliant
+                                            {% if has_event_warnings %}
+                                            <span style="color: var(--warning-color); margin-left: 5px;">
+                                                <i class="fas fa-exclamation-triangle"></i> Warnings
+                                            </span>
+                                            {% endif %}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                                                     {% if actual_cluster_data %}
+                                     <div class="data-stats">
+                                         <div class="stat-item">
+                                             <i class="fas fa-list"></i>
+                                             <span class="stat-count">{{ actual_cluster_data.attributes|length }}</span>
+                                             <span class="stat-label">Attributes</span>
+                                         </div>
+                                         <div class="stat-item">
+                                             <i class="fas fa-list"></i>
+                                             <span class="stat-count">{{ (actual_cluster_data.commands.get('GeneratedCommandList', {}).get('GeneratedCommandList', []) | length) + (actual_cluster_data.commands.get('AcceptedCommandList', {}).get('AcceptedCommandList', []) | length) }}</span>
+                                             <span class="stat-label">Commands</span>
+                                         </div>
+                                     </div>
+                                     {% endif %}
+                                </div>
+
+                                {% if actual_cluster_data %}
+                                <!-- Store cluster data for modal -->
+                                <script type="application/json" class="cluster-data" data-cluster-id="{{ cluster.cluster_id }}" data-endpoint-id="{{ endpoint.endpoint }}">
+                                    {{ actual_cluster_data | tojson }}
+                                </script>
+                                {% endif %}
+
+                                <!-- Store validation data for modal -->
+                                <script type="application/json" class="validation-data" data-cluster-id="{{ cluster.cluster_id }}" data-endpoint-id="{{ endpoint.endpoint }}">
+                                    {{ cluster | tojson }}
+                                </script>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="device-type-card non-compliant">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ device_type.error }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+
+
+<!-- Cluster Details Modal -->
+<div id="clusterModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Cluster Details</h2>
+            <button class="modal-close" onclick="closeClusterModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal overlay -->
+<div id="modalOverlay" class="modal-overlay" onclick="closeClusterModal()"></div>
+
+<!-- Validation Loader -->
+<div id="validationLoader" class="validation-loader" style="display: none;">
+    <div class="loader-content">
+        <div class="loader-spinner">
+            <i class="fas fa-shield-alt fa-3x"></i>
+            <div class="spinner-ring"></div>
+        </div>
+        <h3 id="loaderTitle">Validating Compliance...</h3>
+        <p id="loaderMessage">Please wait while we validate your device against the selected data model version.</p>
+        <div class="loader-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="progress-text" id="progressText">Initializing...</span>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    // Import version persistence module
+    import { initializeVersionPersistence } from '{{ url_for('static', filename='js/version-persistence.js') }}';
+
+    // Initialize version persistence with template data
+    document.addEventListener('DOMContentLoaded', function() {
+        const parseId = {{ parse_id|tojson }};
+        const detectedVersion = {{ detected_version|tojson }};
+        initializeVersionPersistence(parseId, detectedVersion);
+    });
+</script>
+{% endblock %}
